@@ -42,7 +42,7 @@ time-relative questions become **graph traversal + timestamp arithmetic** — an
 
 | Feature | What it does |
 | --- | --- |
-| 🥇 Medallion pipeline | Bronze → Silver → 15 Gold tables in Unity Catalog (idempotent MERGE ingestion) |
+| 🥇 Medallion pipeline | Bronze → Silver → Gold — 18 Delta tables in Unity Catalog (idempotent MERGE ingestion) |
 | 📅 Event & entity extraction | 232 events (10 types, real timestamps only) · 726 entities from 598 records |
 | ⏱️ Temporal intelligence | timelines, bug→fix→release chains, technology evolution, release-window analysis |
 | 🕸️ Knowledge graph | 958 nodes · 1,618 edges, every edge labeled **documented** or **inferred** + confidence |
@@ -50,7 +50,7 @@ time-relative questions become **graph traversal + timestamp arithmetic** — an
 | ⚠️ Contradiction detection | 2 real findings — both sides + evidence URLs preserved (incl. a genuine repo org migration) |
 | 🔎 ELTR investigations | 19 investigations with verified facts, labeled inferences, confidence scores, declared gaps |
 | 🤖 Genie Investigation Assistant | narrative answers grounded in the Gold tables, with the evidence SQL shown |
-| 🖥️ Deployed app | read-only Streamlit app (4 modules) on Databricks Apps with service-principal auth |
+| 🖥️ Deployed app | read-only premium Streamlit app (six pages) on Databricks Apps with service-principal auth |
 | 📊 Rigorous evaluation | 11 data-quality gates + 12-question automated benchmark suite (deterministic SQL scoring) |
 
 ## 🏗️ Architecture
@@ -60,10 +60,10 @@ flowchart TB
     GH["GitHub REST API<br/>tiangolo/typer (→ fastapi/typer)<br/>issues · PRs · releases"]
     subgraph LH["Databricks Lakehouse — Unity Catalog · Delta"]
         B["BRONZE — 3 raw tables<br/>MERGE-idempotent"] --> S["SILVER<br/>silver_github_records · 598"]
-        S --> G["GOLD — 15 tables<br/>events · entities · timeline · chains<br/>nodes/edges · decisions · contradictions<br/>investigations · evaluation · benchmarks"]
+        S --> G["GOLD — 14 tables<br/>events · entities · timeline · chains<br/>nodes/edges · decisions · contradictions<br/>investigations · evaluation · benchmarks"]
     end
     G --> GN["Genie Agent<br/>evidence-grounded Q&A"]
-    G --> APP["echo-x app (Streamlit)<br/>Dashboard · Timeline · Graph · Assistant"]
+    G --> APP["echo-x app (Streamlit, 6 pages)<br/>Command Center · Temporal · Graph · Investigations · Evaluation · About"]
     GN -.->|Genie API + fallback| APP
     U["User (SSO)"] --> APP
     style B fill:#9e6a03,color:#fff
@@ -80,7 +80,7 @@ Full diagrams (medallion, ELTR, knowledge-graph, application): [`docs/ARCHITECTU
 | Layer | Technology |
 | --- | --- |
 | Platform | Databricks (serverless compute, Unity Catalog governance) |
-| Processing | PySpark (DataFrame API, window functions, MERGE) |
+| Processing | PySpark (DataFrame API, window functions, MERGE) + Spark SQL |
 | Storage | Delta Lake tables in Unity Catalog (18 tables) |
 | Ingestion | GitHub REST API v3 (pagination + rate-limit handling) |
 | AI layer | Databricks Genie agent (attached Gold tables, evidence-grounding instructions) |
@@ -103,21 +103,27 @@ Full diagrams (medallion, ELTR, knowledge-graph, application): [`docs/ARCHITECTU
 Full report: [`evaluation/BENCHMARK_RESULTS.md`](./evaluation/BENCHMARK_RESULTS.md) ·
 [`docs/RESULTS_AND_EVALUATION.md`](./docs/RESULTS_AND_EVALUATION.md)
 
-## 🖥️ The application (4 modules)
+## 🖥️ The application (six pages — premium UI)
 
-1. **🛰️ Intelligence Dashboard** — live KPIs and 7 chart sections, all computed from Gold at view time
-2. **📜 Timeline Explorer** — filterable chronological events, each expandable to its GitHub source + Silver record
-3. **🕸️ Knowledge Graph Explorer** — interactive graph; green edges documented, amber inferred; bug→fix→release chains
-4. **🔎 Investigation Assistant** — Genie narrative answers (with evidence SQL) or the deterministic ELTR engine
+1. **🛰️ Intelligence Command Center** — live KPI tiles and chart sections, all computed from Gold at view time
+2. **⏱️ Temporal Intelligence** — zoomable, tone-coded lane timeline; every event expandable to its GitHub source + Silver record
+3. **🕸️ Knowledge Graph Explorer** — interactive graph; green edges documented, amber inferred; incident chains with evidence links
+4. **🔎 Investigation Studio** — Genie narrative answers (with evidence SQL) or the deterministic ELTR engine — confidence and evidence URLs always shown
+5. **📊 Evaluation & Quality** — recorded benchmark runs, data-quality gates, and evaluation history
+6. **ℹ️ About ECHO-X** — methodology, the ELTR discipline, and how to read every number
 
 ### Screenshots
 
-Screenshots live in [`screenshots/`](./screenshots/README.md). *(Placeholders below are
-linked to filenames to add — see the screenshot checklist.)*
+Real captures of the running app live in [`screenshots/`](./screenshots/README.md) — see the
+exact capture checklist there (the embeds below render once those files are committed):
 
-| Dashboard | Knowledge Graph |
+| Command Center | Temporal Intelligence |
 | --- | --- |
-| ![Dashboard](screenshots/01_dashboard.png) | ![Graph](screenshots/03_knowledge_graph.png) |
+| ![Command Center](screenshots/01-command-center.png) | ![Temporal Intelligence](screenshots/02-temporal-intelligence.png) |
+
+| Knowledge Graph | Investigation Studio | Evaluation & Quality |
+| --- | --- | --- |
+| ![Knowledge Graph](screenshots/03-knowledge-graph.png) | ![Investigation Studio](screenshots/04-investigation-studio.png) | ![Evaluation & Quality](screenshots/05-evaluation-quality.png) |
 
 ## 🚀 Quick start
 
@@ -125,7 +131,8 @@ The full reproduction guide (prerequisites → ingestion → Gold → Genie → 
 with verification checklist and troubleshooting) is in
 [`docs/EXECUTION_GUIDE.md`](./docs/EXECUTION_GUIDE.md). Summary:
 
-1. Run the pipeline notebook top-to-bottom in a Databricks workspace (Bronze is idempotent; Silver is derived).
+1. Run the pipeline top-to-bottom in a Databricks workspace — the verbatim export is
+   [`notebooks/ECHO-X-pipeline.py`](./notebooks/ECHO-X-pipeline.py) (Bronze is idempotent; Silver is derived).
 2. Create the Genie space (instructions embedded in the notebook).
 3. Deploy the app: `databricks apps deploy echo-x --source-code-path <repo>/apps/echo-x`
 4. Grant the app's service principal read-only access to the schema (`GRANT SELECT ON SCHEMA`).
@@ -138,7 +145,7 @@ ECHO-X/
 ├── LICENSE.md                 ← MIT
 ├── .gitignore
 ├── apps/echo-x/               ← deployed Streamlit app (Databricks Apps git source)
-├── notebooks/                 ← pipeline notebook (see README in folder)
+├── notebooks/                 ← ECHO-X-pipeline.py — verbatim pipeline export + README
 ├── docs/                      ← full documentation set
 │   ├── PROJECT_REPORT.md      ← 20-section project report
 │   ├── TECHNICAL_AUDIT.md     ← component-by-component audit
@@ -153,10 +160,12 @@ ECHO-X/
 
 ## ⚠️ Limitations & future scope (honest by design)
 
-- Anonymous GitHub API caps issues/PRs at 5 pages (recent history; releases are complete 2019→2026)
+- Anonymous GitHub API caps issues/PRs at 5 pages (recent history; releases are complete 2019→2026), so early historical years are sparse — reported as-is, never interpolated
 - Rule-based extraction — subtle discussions without expected keywords are not extracted (reported honestly as 0)
-- “Rejected” decision status not derivable from current Silver schema (declared, not invented)
+- Inferred relationships are always labeled and confidence-scored — never presented as documented evidence
+- “Rejected” decision status and most rejected alternatives are not recoverable from the available records (declared as gaps, not invented)
 - Genie tier needs a one-time space permission; the app falls back to a deterministic engine otherwise
+- The 12/12 deterministic benchmarks validate the reconstruction pipeline on this dataset — they do not establish general Genie answer accuracy
 
 Full list + prioritized roadmap: [`docs/LIMITATIONS_AND_ROADMAP.md`](./docs/LIMITATIONS_AND_ROADMAP.md)
 

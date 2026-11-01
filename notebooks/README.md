@@ -24,16 +24,33 @@ Catalog (catalog `learn_get_started_de_vijayanandhini`, schema `echo_x`).
 The cell-by-cell description with key outputs is in
 [`../docs/EXECUTION_GUIDE.md`](../docs/EXECUTION_GUIDE.md) §1.
 
-## Getting the notebook into this folder
+## The export — `ECHO-X-pipeline.py` (present)
 
-The notebook is exported from the Databricks workspace and committed here:
+The real pipeline notebook is exported verbatim to [`ECHO-X-pipeline.py`](./ECHO-X-pipeline.py):
 
-1. Open the notebook in the Databricks workspace.
-2. **File → Export → Source file (.py)** (or `.ipynb` for Jupyter viewing).
-3. Save it as `notebooks/ECHO-X-pipeline.py` and commit.
+- **Source:** Databricks workspace notebook `ECHO -X`
+  (`/Users/vijayanandhini@student.tce.edu/ECHO -X`), exported via the workspace export API in
+  SOURCE format — the implementation, cell boundaries (`# COMMAND ----------`), comments and
+  execution order are preserved exactly as built and executed.
+- **Size:** 2,204 lines · 33 cells (32 `# COMMAND` separators) · ~114 KB.
+- **Re-importable:** the first line is `# Databricks notebook source`, so the file can be
+  imported back into a Databricks workspace as a notebook; it is also valid standalone
+  Python syntax (verified with `py_compile`).
+- **Dependencies:** a Databricks Runtime with PySpark, Spark SQL and `dbutils` (any recent
+  DBR), plus the `requests` library (preinstalled on DBR) for the GitHub REST ingestion
+  cells. No other packages are required.
+- **Credentials:** none. The optional GitHub PAT is read at runtime with
+  `dbutils.secrets.get(scope="github", key="pat")` and falls back to anonymous access —
+  no secret values exist in the file. Platform auth is handled by the workspace.
+- **Execution:** run top-to-bottom (same order as the map above). Set `CATALOG` in cell 1 to
+  a catalog you can `CREATE SCHEMA` in; all Bronze writes are MERGE-idempotent on `source_id`.
+- **What it produces:** the full `echo_x` schema — 3 Bronze + 1 Silver + 14 Gold tables
+  (benchmarks included) — 18 Delta tables in total.
 
-*(The notebook contains **no credentials** — GitHub ingestion is anonymous and all platform
-auth is handled by the workspace, so it is safe to publish.)*
+The benchmark numbers printed by the final cells are from the recorded evaluation run of
+this dataset (`run_20261101_060656`, 12/12 passed) — a methodology validation, not a
+universal accuracy guarantee. No notebooks were left un-exported: this single notebook is
+the entire pipeline.
 
 ## Execution order & idempotency
 
