@@ -745,9 +745,10 @@ def page_temporal():
         types = c[1].multiselect("Event types", event_types())
         tech = c[2].selectbox("Technology", [""] + tech_names())
         dev = c[3].selectbox("Developer", [""] + dev_names())
-        search = st.text_input("Search titles & descriptions", "",
-                               placeholder="e.g. envvar, pydantic, vendoring",
-                               value=st.session_state.get("global_search", ""))
+        search = st.text_input(
+            "Search titles & descriptions",
+            value=st.session_state.get("global_search", ""),
+            placeholder="e.g. envvar, pydantic, vendoring")
         submitted = st.form_submit_button("Apply filters", type="primary",
                                           use_container_width=True)
 
@@ -865,22 +866,21 @@ def _node_color(n):
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def bug_chains():
-    return run_sql(f"""SELECT bug_discovery, bug_title, release_title,
-                            release_date, bug_url, release_url, resolution_days
+def incident_chains():
+    return run_sql(f"""SELECT bug_title, discovered_at, resolved_at,
+                            resolution_days, source_url
                      FROM {T}.gold_incident_resolutions
-                     WHERE release_title IS NOT NULL
-                     ORDER BY release_date DESC""")
+                     WHERE resolved_at IS NOT NULL
+                     ORDER BY resolved_at DESC""")
 
 
 @st.cache_data(ttl=300, show_spinner=False)
-def chain_events(bug_discovery, release_title):
-    return run_sql(f"""SELECT e.event_id, e.event_type, e.event_title, e.event_time,
-                              e.source_url, e.confidence_score
-                     FROM {T}.gold_events e
-                     WHERE e.event_id = :b OR e.event_title = :r
-                     ORDER BY e.event_time""",
-                   [("b", bug_discovery, "STRING"), ("r", release_title, "STRING")])
+def events_between(t0, t1):
+    return run_sql(f"""SELECT event_type, event_title, event_time, source_url
+                     FROM {T}.gold_events
+                     WHERE event_time BETWEEN :a AND :b
+                     ORDER BY event_time""",
+                   [("a", str(t0), "STRING"), ("b", str(t1), "STRING")])
 
 
 def page_graph():
@@ -969,33 +969,37 @@ def page_graph():
                 "evidence": e.get("evidence_source_url")} for e in rel]), use_container_width=True)
 
     st.markdown(f'<div class="ex-card-title" style="margin-top:12px">{svg("git", 16, "#34d399")} '
-                'Bug → fix → release chains (traversal investigations)</div>', unsafe_allow_html=True)
+                'Bug → fix chains (incident resolution history)</div>', unsafe_allow_html=True)
     try:
-        chains = bug_chains()
+        chains = incident_chains()
         if chains:
-            labels = [f"{c['bug_title'][:60]} → {c['release_title'][:20]}" for c in chains]
-            ci = st.selectbox("Chain", range(len(chains)), format_func=lambda i: labels[i])
+            labels = [f"{c['bug_title'][:70]} ({c['resolution_days']} days)" for c in chains]
+            ci = st.selectbox("Chain", range(len(chains)),
+                             format_func=lambda i: labels[i], key="chain_sel")
             c = chains[ci]
             st.markdown(
                 "<div class='ex-card' style='padding:12px 16px'>" +
-                badge("bug", "bad") + " → " + badge("fix", "warn") + " → " +
-                badge("release", "cyan") + " &nbsp; <b>" +
-                (c["bug_title"] or "")[:80] + "</b> shipped in <b>" +
-                (c["release_title"] or "")[:40] + "</b> on " + str(c["release_date"])[:10] +
-                " (resolution " + str(c["resolution_days"]) + " days)</div>",
+                badge("bug", "bad") + " → " + badge("fix", "warn") + " &nbsp; <b>" +
+                (c["bug_title"] or "")[:90] + "</b> was open " +
+                str(c["resolution_days"]) + " days (" +
+                str(c["discovered_at"])[:10] + " → " + str(c["resolved_at"])[:10] +
+                ")</div>",
                 unsafe_allow_html=True)
-            st.markdown(f"- Bug evidence: {_mdlink(c['bug_url'])}  \n- Release evidence: {_mdlink(c['release_url'])}")
-            ce = chain_events(c["bug_discovery"], c["release_title"])
-            st.dataframe(pd.DataFrame([{"event": e["event_title"],
-                                        "type": e["event_type"],
-                                        "time": str(e["event_time"])[:16],
-                                        "confidence": e["confidence_score"],
-                                        "evidence": e["source_url"]} for e in ce]),
-                         use_container_width=True)
+            st.markdown(f"- Incident evidence: {_mdlink(c['source_url'])}")
+            ce = events_between(c["discovered_at"], c["resolved_at"])
+            if ce:
+                st.caption(f"{len(ce)} documented events occurred while this bug was open:")
+                st.dataframe(pd.DataFrame([{"event": e["event_title"],
+                                            "type": e["event_type"],
+                                            "time": str(e["event_time"])[:16],
+                                            "evidence": e["source_url"]} for e in ce]),
+                             use_container_width=True, key="chain_ev")
+            else:
+                st.caption("No documented events occurred inside this open window.")
         else:
-            st.markdown(empty_state("git", "No completed chains",
-                        "No completed bug → fix → release chains found in "
-                        "gold_incident_resolutions."), unsafe_allow_html=True)
+            st.markdown(empty_state("git", "No resolved incidents",
+                        "No resolved incidents found in gold_incident_resolutions."),
+                        unsafe_allow_html=True)
     except Exception as e:
         st.markdown(error_state(e), unsafe_allow_html=True)
 
@@ -1187,20 +1191,20 @@ def investigate_fallback(q):
         if kw:
             ph = " AND ".join(f"LOWER(bug_title) LIKE :k{i}" for i in range(len(kw)))
             params = [(f"k{i}", f"%{k}%", "STRING") for i, k in enumerate(kw)]
-            chains = run_sql(f"""SELECT bug_title, bug_discovery, release_title,
-                                        release_date, resolution_days, bug_url, release_url
+            chains = run_sql(f"""SELECT bug_title, discovered_at, resolved_at,
+                                        resolution_days, source_url
                                  FROM {T}.gold_incident_resolutions
-                                 WHERE release_title IS NOT NULL AND {ph}
+                                 WHERE resolved_at IS NOT NULL AND {ph}
                                  LIMIT 5""", params)
             if chains:
                 for ch in chains:
-                    st.markdown(badge("bug", "bad") + " → " + badge("fix", "warn") + " → " +
-                                badge("release", "cyan"), unsafe_allow_html=True)
-                    st.markdown(f"**{(ch['bug_title'] or '')[:90]}** — fixed and shipped in "
-                                f"**{ch['release_title']}** ({str(ch['release_date'])[:10]}, "
-                                f"{ch['resolution_days']} days). "
-                                f"Bug evidence: {_mdlink(ch['bug_url'])} · "
-                                f"Release evidence: {_mdlink(ch['release_url'])}")
+                    st.markdown(badge("bug", "bad") + " → " + badge("fix", "warn"),
+                                unsafe_allow_html=True)
+                    st.markdown(f"**{(ch['bug_title'] or '')[:90]}** — open "
+                                f"{ch['resolution_days']} days "
+                                f"({str(ch['discovered_at'])[:10]} → "
+                                f"{str(ch['resolved_at'])[:10]}). "
+                                f"Evidence: {_mdlink(ch['source_url'])}")
                 return
 
     words = [w for w in re.findall(r"[a-z0-9_.]{3,}", ql)][:3]
