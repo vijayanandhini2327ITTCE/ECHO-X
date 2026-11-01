@@ -716,7 +716,7 @@ def timeline_query(d1, d2, types, tech, dev, search):
 @st.cache_data(ttl=300, show_spinner=False)
 def silver_detail(source_id):
     rows = run_sql(
-        f"""SELECT state, author, created_ts, closed_ts, labels, url
+        f"""SELECT state, author, created_ts, closed_ts, labels, source_url
            FROM {T}.silver_github_records WHERE source_id = :sid LIMIT 1""",
         [("sid", source_id, "STRING")])
     return rows[0] if rows else {}
