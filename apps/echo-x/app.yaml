@@ -1,0 +1,15 @@
+command:
+  - streamlit
+  - run
+  - app.py
+  - --server.port=$DATABRICKS_APP_PORT
+
+env:
+  - name: ECHO_X_CATALOG
+    value: learn_get_started_de_vijayanandhini
+  - name: ECHO_X_SCHEMA
+    value: echo_x
+  - name: ECHO_X_WAREHOUSE_ID
+    value: db585e0c39b6753f
+  - name: ECHO_X_GENIE_SPACE_ID
+    value: 01f1d53cbc42176ca9180944796f7cfd
