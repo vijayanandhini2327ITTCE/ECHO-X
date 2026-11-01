@@ -29,9 +29,10 @@ GENIE_SPACE_ID = os.environ.get("ECHO_X_GENIE_SPACE_ID",
                                 "01f1d53cbc42176ca9180944796f7cfd")
 T = f"{CATALOG}.{SCHEMA}"  # table prefix
 
-C = {"accent": "#22d3ee", "violet": "#a78bfa", "ok": "#34d399", "warn": "#f6c453",
-     "bad": "#f0716c", "muted": "#93a1b8", "dev": "#a78bfa", "event": "#60a5fa",
-     "tech": "#34d399", "record": "#93a1b8", "release": "#22d3ee", "blue": "#60a5fa"}
+C = {"accent": "#22d3ee", "cyan": "#22d3ee", "violet": "#a78bfa",
+     "ok": "#34d399", "warn": "#f6c453", "bad": "#f0716c", "muted": "#93a1b8",
+     "dev": "#a78bfa", "event": "#60a5fa", "tech": "#34d399",
+     "record": "#93a1b8", "release": "#22d3ee", "blue": "#60a5fa"}
 
 st.markdown("""<style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
