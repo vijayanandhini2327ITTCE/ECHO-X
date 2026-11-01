@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Secrets & credentials — never commit these
+.env
+.env.*
+*.pem
+*.key
+id_rsa*
+*token*.txt
+*secret*.json
+credentials*.json
+
+# Databricks / IDE
+.databricks/
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Exports / scratch
+scratch/
+*.log
